@@ -470,7 +470,7 @@ export async function POST(request: NextRequest) {
     let result;
     
     switch (action) {
-      case 'analyze_entry':
+      case 'analyze_entry': {
         // Full team analysis of a single entry
         const { entry, historicalContext = null } = data;
         
@@ -483,8 +483,9 @@ export async function POST(request: NextRequest) {
         
         console.log(`[ResearchTeam][${requestId}] Team analysis complete`);
         break;
+      }
         
-      case 'generate_checkpoint':
+      case 'generate_checkpoint': {
         // Checkpoint synthesis across multiple entries
         const { entries, previousAnalyses = [] } = data;
         
@@ -497,8 +498,9 @@ export async function POST(request: NextRequest) {
         
         console.log(`[ResearchTeam][${requestId}] Checkpoint complete`);
         break;
+      }
         
-      case 'single_perspective':
+      case 'single_perspective': {
         // Get analysis from just one professional
         const { entry, professional, historicalContext = null } = data;
         
@@ -514,6 +516,7 @@ export async function POST(request: NextRequest) {
         
         console.log(`[ResearchTeam][${requestId}] ${professional} analysis complete`);
         break;
+      }
         
       default:
         return NextResponse.json(
