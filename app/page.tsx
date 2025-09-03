@@ -9,6 +9,7 @@ import {
   AlertCircle, Zap, Layers
 } from 'lucide-react';
 import JournalService from '@/services/journalService';
+import ResearchTeamService from '@/services/researchTeamService';
 
 // Styled Components
 const Container = styled.div`
@@ -338,6 +339,7 @@ export default function HomePage() {
   });
 
   const journalService = new JournalService();
+  const researchTeamService = new ResearchTeamService();
 
   useEffect(() => {
     const mockEntries = [
@@ -369,12 +371,26 @@ export default function HomePage() {
         tags: []
       };
       
-      const analysis = await journalService.analyzeEntry(entry, entries);
+      // Get historical context for the research team
+      const historicalContext = researchTeamService.formatHistoricalContext(entries, 3);
+      
+      // Use research team for analysis instead of simple analysis
+      console.log('[Main] Requesting research team analysis...');
+      const teamAnalysis = await researchTeamService.analyzeWithFullTeam(entry, historicalContext);
+      
+      // Save the team analysis to localStorage for the insights page
+      localStorage.setItem('latestTeamAnalysis', JSON.stringify(teamAnalysis));
+      
+      // Extract key patterns from team analysis for display
+      const primaryPatterns = teamAnalysis.initial_analyses?.map((a: any) => 
+        a.analysis?.pattern_identification?.primary_pattern
+      ).filter(Boolean) || [];
       
       const entryWithAnalysis = {
         ...entry,
-        analysis,
-        tags: analysis.cognitive_distortions?.map((d: any) => d.type) || []
+        teamAnalysis,
+        tags: primaryPatterns.slice(0, 3), // Use top 3 patterns as tags
+        hasTeamAnalysis: true
       };
       
       setEntries([entryWithAnalysis, ...entries]);
@@ -389,8 +405,21 @@ export default function HomePage() {
           actual_response: ''
         }
       });
+      
+      // Check if we should generate a checkpoint
+      const updatedEntries = [entryWithAnalysis, ...entries];
+      if (researchTeamService.shouldGenerateCheckpoint(updatedEntries)) {
+        console.log('[Main] Generating checkpoint...');
+        const checkpoint = await researchTeamService.generateCheckpoint(
+          updatedEntries.slice(0, 10),
+          updatedEntries.map(e => e.teamAnalysis?.initial_analyses || []).flat()
+        );
+        localStorage.setItem('latestCheckpoint', JSON.stringify(checkpoint));
+        console.log('[Main] Checkpoint saved');
+      }
     } catch (error) {
-      console.error('Failed to process entry:', error);
+      console.error('Failed to process entry with research team:', error);
+      alert('Failed to analyze entry. Please check console for details.');
     } finally {
       setIsProcessing(false);
     }
@@ -453,8 +482,8 @@ export default function HomePage() {
             </>
           ) : (
             <>
-              <Sparkles size={16} />
-              Analyze Entry
+              <Users size={16} />
+              Analyze with Research Team
             </>
           )}
         </Button>
