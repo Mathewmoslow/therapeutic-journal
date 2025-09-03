@@ -352,11 +352,12 @@ class ResearchTeamService {
     }
   }
 
-  async generateAnalysis(prompt: string, maxTokens: number = 4000): Promise<any> {
+  async generateAnalysis(prompt: string, maxTokens: number = 4000, timeout: number = 15000): Promise<any> {
     console.log('[ResearchTeam] Generating analysis...', {
       promptLength: prompt.length,
       maxTokens,
       model: this.currentModel,
+      timeout,
       availableModels: this.models,
       apiKeyPresent: !!this.apiKey,
       apiKeyPrefix: this.apiKey?.substring(0, 10)
@@ -387,14 +388,19 @@ class ResearchTeamService {
     console.log('[ResearchTeam] Sending request to OpenAI...');
     
     try {
+      // Create an AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.apiKey}`
         },
-        body: JSON.stringify(requestBody)
-      });
+        body: JSON.stringify(requestBody),
+        signal: controller.signal
+      }).finally(() => clearTimeout(timeoutId));
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -435,6 +441,11 @@ class ResearchTeamService {
     } catch (error: any) {
       console.error(`[ResearchTeam] Model ${model} error:`, error.message);
       
+      // If it's a timeout, throw immediately
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout - analysis took too long');
+      }
+      
       // If this isn't the last model, try the next one
       if (model !== this.models[this.models.length - 1]) {
         continue;
@@ -448,43 +459,92 @@ class ResearchTeamService {
     throw new Error('All models failed to generate analysis');
   }
 
-  async runFullTeamAnalysis(entry: any, historicalContext: any) {
-    console.log('[ResearchTeam] Running full team analysis...');
+  async runFullTeamAnalysis(entry: any, historicalContext: any, options: { quickMode?: boolean } = {}) {
+    console.log('[ResearchTeam] Running full team analysis...', { quickMode: options.quickMode });
     
-    const teamAnalyses = [];
     const professionals = Object.keys(RESEARCH_TEAM);
     
-    // Phase 1: Initial analyses from each professional
-    console.log('[ResearchTeam] Phase 1: Generating initial analyses...');
-    for (const professional of professionals) {
-      const prompt = ResearchTeamPromptBuilder.buildInitialAnalysisPrompt(
-        professional,
-        entry,
-        historicalContext
-      );
-      
-      const analysis = await this.generateAnalysis(prompt, 5000);
-      teamAnalyses.push(analysis);
-      
-      console.log(`[ResearchTeam] ${professional} analysis complete`);
+    // In quick mode, only use 2 professionals
+    const selectedProfessionals = options.quickMode 
+      ? ['psychodynamic_analyst', 'family_systems_therapist']
+      : professionals;
+    
+    // Reduced token counts for faster responses
+    const maxTokens = options.quickMode ? 1500 : 3000;
+    const timeout = options.quickMode ? 8000 : 12000;
+    
+    // Phase 1: Initial analyses - RUN IN PARALLEL
+    console.log('[ResearchTeam] Phase 1: Generating initial analyses in parallel...');
+    const analysisPromises = selectedProfessionals.map(async (professional) => {
+      try {
+        const prompt = ResearchTeamPromptBuilder.buildInitialAnalysisPrompt(
+          professional,
+          entry,
+          historicalContext
+        );
+        
+        const analysis = await this.generateAnalysis(prompt, maxTokens, timeout);
+        console.log(`[ResearchTeam] ${professional} analysis complete`);
+        return analysis;
+      } catch (error) {
+        console.error(`[ResearchTeam] ${professional} failed:`, error);
+        // Return a fallback analysis instead of failing completely
+        return {
+          professional,
+          speaker_name: RESEARCH_TEAM[professional as keyof typeof RESEARCH_TEAM].name,
+          analysis: {
+            opening_observation: "Analysis temporarily unavailable",
+            pattern_identification: {
+              primary_pattern: "Unable to analyze at this time",
+              evidence: [],
+              pattern_function: "N/A",
+              pattern_cost: "N/A"
+            }
+          },
+          error: true
+        };
+      }
+    });
+    
+    const teamAnalyses = await Promise.all(analysisPromises);
+    
+    // Skip Phase 2 in quick mode or if there were errors
+    if (options.quickMode || teamAnalyses.some(a => a.error)) {
+      console.log('[ResearchTeam] Skipping cross-commentary (quick mode or errors)');
+      return {
+        entry_analyzed: {
+          id: entry.id,
+          title: entry.title,
+          date: entry.createdAt
+        },
+        initial_analyses: teamAnalyses,
+        cross_commentary: [],
+        quickMode: true,
+        timestamp: new Date().toISOString(),
+        word_count: JSON.stringify(teamAnalyses).length
+      };
     }
     
-    // Phase 2: Cross-commentary - each professional responds to others
-    console.log('[ResearchTeam] Phase 2: Generating cross-commentary...');
-    const crossCommentaries = [];
+    // Phase 2: Cross-commentary - also in PARALLEL
+    console.log('[ResearchTeam] Phase 2: Generating cross-commentary in parallel...');
+    const commentaryPromises = selectedProfessionals.map(async (professional) => {
+      try {
+        const prompt = ResearchTeamPromptBuilder.buildCrossCommentaryPrompt(
+          professional,
+          teamAnalyses,
+          entry
+        );
+        
+        const commentary = await this.generateAnalysis(prompt, maxTokens, timeout);
+        console.log(`[ResearchTeam] ${professional} commentary complete`);
+        return commentary;
+      } catch (error) {
+        console.error(`[ResearchTeam] ${professional} commentary failed:`, error);
+        return null; // Skip failed commentaries
+      }
+    });
     
-    for (const professional of professionals) {
-      const prompt = ResearchTeamPromptBuilder.buildCrossCommentaryPrompt(
-        professional,
-        teamAnalyses,
-        entry
-      );
-      
-      const commentary = await this.generateAnalysis(prompt, 3000);
-      crossCommentaries.push(commentary);
-      
-      console.log(`[ResearchTeam] ${professional} commentary complete`);
-    }
+    const crossCommentaries = (await Promise.all(commentaryPromises)).filter(c => c !== null);
     
     return {
       entry_analyzed: {
@@ -517,8 +577,15 @@ class ResearchTeamService {
 
 export async function POST(request: NextRequest) {
   const requestId = `team-${Date.now()}`;
+  const startTime = Date.now();
   
   console.log(`[ResearchTeam][${requestId}] Request received`);
+  
+  // Set a hard timeout for Vercel (50 seconds to leave buffer)
+  const VERCEL_TIMEOUT = 50000;
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Vercel function timeout approaching')), VERCEL_TIMEOUT);
+  });
   
   try {
     const body = await request.json();
@@ -529,21 +596,24 @@ export async function POST(request: NextRequest) {
     const teamService = new ResearchTeamService();
     let result;
     
-    switch (action) {
-      case 'analyze_entry': {
-        // Full team analysis of a single entry
-        const { entry, historicalContext = null } = data;
-        
-        console.log(`[ResearchTeam][${requestId}] Analyzing entry: ${entry.title}`);
-        
-        result = await teamService.runFullTeamAnalysis(
-          entry,
-          historicalContext
-        );
-        
-        console.log(`[ResearchTeam][${requestId}] Team analysis complete`);
-        break;
-      }
+    // Wrap everything in a race against the timeout
+    result = await Promise.race([
+      timeoutPromise,
+      (async () => {
+        switch (action) {
+          case 'analyze_entry': {
+            // Full team analysis of a single entry
+            const { entry, historicalContext = null } = data;
+            const quickMode = settings.quickMode !== false; // Default to quick mode
+            
+            console.log(`[ResearchTeam][${requestId}] Analyzing entry: ${entry.title} (quickMode: ${quickMode})`);
+            
+            return await teamService.runFullTeamAnalysis(
+              entry,
+              historicalContext,
+              { quickMode }
+            );
+          }
         
       case 'generate_checkpoint': {
         // Checkpoint synthesis across multiple entries
@@ -572,25 +642,25 @@ export async function POST(request: NextRequest) {
           historicalContext
         );
         
-        result = await teamService.generateAnalysis(prompt, 5000);
-        
-        console.log(`[ResearchTeam][${requestId}] ${professional} analysis complete`);
-        break;
+        return await teamService.generateAnalysis(prompt, 3000, 15000);
       }
         
       default:
-        return NextResponse.json(
-          { error: 'Invalid action', message: `Unknown action: ${action}` },
-          { status: 400 }
-        );
+        throw new Error(`Unknown action: ${action}`);
     }
+  })()
+    ]);
+    
+    const elapsed = Date.now() - startTime;
+    console.log(`[ResearchTeam][${requestId}] Completed in ${elapsed}ms`);
     
     return NextResponse.json({
       success: true,
       action,
       data: result,
       requestId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      executionTime: elapsed
     });
     
   } catch (error: any) {

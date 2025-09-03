@@ -340,6 +340,69 @@ export default function HomePage() {
 
   const journalService = new JournalService();
   const researchTeamService = new ResearchTeamService();
+  const [retryingEntries, setRetryingEntries] = useState<Set<string>>(new Set());
+
+  const handleRetryAnalysis = async (entryId: string) => {
+    if (retryingEntries.has(entryId)) return;
+    
+    setRetryingEntries(prev => {
+      const next = new Set(prev);
+      next.add(entryId);
+      return next;
+    });
+    
+    try {
+      console.log(`[Main] Retrying analysis for entry ${entryId}`);
+      
+      // Use the retry method with quick mode
+      const teamAnalysis = await researchTeamService.retryAnalysis(entryId, { quickMode: true });
+      
+      // Update the entry with the new analysis
+      setEntries(prev => prev.map(entry => {
+        if (entry.id === entryId) {
+          // Extract patterns from successful analysis
+          const primaryPatterns = teamAnalysis.initial_analyses?.map((a: any) => 
+            a.analysis?.pattern_identification?.primary_pattern
+          ).filter((p: any) => p && !p.includes('TIMEOUT') && !p.includes('PLACEHOLDER')) || [];
+          
+          return {
+            ...entry,
+            teamAnalysis,
+            tags: primaryPatterns.length > 0 ? primaryPatterns.slice(0, 3) : entry.tags,
+            hasTeamAnalysis: true,
+            requiresRetry: teamAnalysis.fallback || false
+          };
+        }
+        return entry;
+      }));
+      
+      // Update active entry if it's the one being retried
+      if (activeEntry?.id === entryId) {
+        const updatedEntry = entries.find(e => e.id === entryId);
+        if (updatedEntry) {
+          setActiveEntry({
+            ...updatedEntry,
+            teamAnalysis,
+            requiresRetry: teamAnalysis.fallback || false
+          });
+        }
+      }
+      
+      // Save updated analysis to localStorage
+      localStorage.setItem('latestTeamAnalysis', JSON.stringify(teamAnalysis));
+      
+      console.log('[Main] Retry successful for entry:', entryId);
+    } catch (error) {
+      console.error('[Main] Retry failed:', error);
+      alert('Retry failed. Please try again later or enable Quick Mode.');
+    } finally {
+      setRetryingEntries(prev => {
+        const next = new Set(prev);
+        next.delete(entryId);
+        return next;
+      });
+    }
+  };
 
   useEffect(() => {
     const mockEntries = [
@@ -390,7 +453,8 @@ export default function HomePage() {
         ...entry,
         teamAnalysis,
         tags: primaryPatterns.slice(0, 3), // Use top 3 patterns as tags
-        hasTeamAnalysis: true
+        hasTeamAnalysis: true,
+        requiresRetry: teamAnalysis.fallback || false
       };
       
       setEntries([entryWithAnalysis, ...entries]);
@@ -588,7 +652,61 @@ export default function HomePage() {
                       
                       <EntryContent>{entry.moment.raw_text}</EntryContent>
                       
-                      {entry.tags && entry.tags.length > 0 && (
+                      {entry.requiresRetry && (
+                        <div style={{ 
+                          marginTop: '0.75rem', 
+                          padding: '0.75rem', 
+                          backgroundColor: '#fff3cd', 
+                          borderRadius: '6px',
+                          border: '1px solid #ffc107'
+                        }}>
+                          <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '0.5rem', 
+                            marginBottom: '0.5rem',
+                            fontSize: '0.875rem'
+                          }}>
+                            <span style={{ color: '#856404', fontWeight: 600 }}>
+                              ⚠️ Analysis Timed Out
+                            </span>
+                          </div>
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRetryAnalysis(entry.id);
+                            }}
+                            disabled={retryingEntries.has(entry.id)}
+                            style={{ 
+                              fontSize: '0.875rem', 
+                              padding: '0.375rem 0.75rem',
+                              backgroundColor: retryingEntries.has(entry.id) ? '#f5f5f5' : '#ffc107',
+                              color: retryingEntries.has(entry.id) ? '#999' : '#000',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: retryingEntries.has(entry.id) ? 'not-allowed' : 'pointer'
+                            }}
+                          >
+                            {retryingEntries.has(entry.id) ? (
+                              <>
+                                <Spinner />
+                                Retrying Analysis...
+                              </>
+                            ) : (
+                              '🔄 Retry Analysis'
+                            )}
+                          </Button>
+                          <div style={{ 
+                            fontSize: '0.75rem', 
+                            color: '#666', 
+                            marginTop: '0.5rem' 
+                          }}>
+                            Quick mode enabled for faster processing
+                          </div>
+                        </div>
+                      )}
+                      
+                      {entry.tags && entry.tags.length > 0 && !entry.requiresRetry && (
                         <TagContainer>
                           {entry.tags.slice(0, 3).map((tag: string, i: number) => (
                             <Tag key={i}>{tag}</Tag>
