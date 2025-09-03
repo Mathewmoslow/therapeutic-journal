@@ -135,7 +135,7 @@ export default class ResearchTeamService {
   }
   
   // Helper method to get historical context from previous entries
-  formatHistoricalContext(previousEntries: any[], limit: number = 5): string {
+  formatHistoricalContext(previousEntries: any[], limit: number = 5): string | null {
     if (!previousEntries || previousEntries.length === 0) {
       return null;
     }
