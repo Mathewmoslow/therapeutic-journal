@@ -6,7 +6,8 @@ import { NextRequest, NextResponse } from 'next/server';
 class OpenAIService {
   private apiKey: string;
   private apiUrl = 'https://api.openai.com/v1/chat/completions';
-  private model = 'gpt-4-turbo'; // or 'gpt-4' for standard, 'gpt-3.5-turbo' for faster/cheaper
+  private models = ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo']; // Fallback chain
+  private model = 'gpt-4o'; // Primary model
   
   constructor() {
     console.log('[OpenAIService] Initializing service...');

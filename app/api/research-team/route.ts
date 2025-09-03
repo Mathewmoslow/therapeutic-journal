@@ -342,7 +342,8 @@ Create an updated memory structure:
 
 class ResearchTeamService {
   private apiKey: string;
-  private model = 'gpt-4-turbo';
+  private models = ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo']; // Try models in order
+  private currentModel = 'gpt-4o';
   
   constructor() {
     this.apiKey = process.env.OPENAI_API_KEY!;
@@ -355,13 +356,19 @@ class ResearchTeamService {
     console.log('[ResearchTeam] Generating analysis...', {
       promptLength: prompt.length,
       maxTokens,
-      model: this.model,
+      model: this.currentModel,
+      availableModels: this.models,
       apiKeyPresent: !!this.apiKey,
       apiKeyPrefix: this.apiKey?.substring(0, 10)
     });
     
-    const requestBody = {
-      model: this.model,
+    // Try each model until one works
+    for (const model of this.models) {
+      this.currentModel = model;
+      console.log(`[ResearchTeam] Trying model: ${model}`);
+      
+      const requestBody = {
+        model: model,
       messages: [
         {
           role: 'system',
@@ -391,53 +398,54 @@ class ResearchTeamService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('[ResearchTeam] OpenAI API Error:', {
+        console.error(`[ResearchTeam] Model ${model} failed:`, {
           status: response.status,
           statusText: response.statusText,
-          error: errorText,
-          model: this.model
+          error: errorText
         });
         
-        // Parse error for more details
-        let errorMessage = `OpenAI API error (${response.status}): `;
-        try {
-          const errorJson = JSON.parse(errorText);
-          if (errorJson.error?.message) {
-            errorMessage += errorJson.error.message;
-            
-            // Common error explanations
-            if (response.status === 400) {
-              if (errorJson.error.message.includes('model')) {
-                errorMessage += ' - The model may not be available or the name is incorrect.';
-              }
-              if (errorJson.error.message.includes('max_tokens')) {
-                errorMessage += ' - Token limit issue.';
-              }
-            } else if (response.status === 401) {
-              errorMessage += ' - API key is invalid or not set correctly in environment variables.';
-            } else if (response.status === 429) {
-              errorMessage += ' - Rate limit exceeded. Please wait before trying again.';
-            }
-          }
-        } catch {
-          errorMessage += errorText || response.statusText;
+        // If it's a model not found error and we have more models to try, continue
+        if (response.status === 404 || (response.status === 400 && errorText.includes('model'))) {
+          console.log(`[ResearchTeam] Model ${model} not available, trying next...`);
+          continue; // Try next model
         }
         
-        throw new Error(errorMessage);
+        // If it's an auth error, fail immediately
+        if (response.status === 401) {
+          throw new Error('API key is invalid or not set correctly in environment variables.');
+        }
+        
+        // For other errors on the last model, throw
+        if (model === this.models[this.models.length - 1]) {
+          throw new Error(`All models failed. Last error: ${errorText}`);
+        }
+        
+        continue; // Try next model
       }
 
       const data = await response.json();
-      console.log('[ResearchTeam] OpenAI Response received:', {
-        model: data.model,
+      console.log('[ResearchTeam] Success with model:', {
+        model: model,
+        actualModel: data.model,
         tokensUsed: data.usage?.total_tokens,
         finishReason: data.choices?.[0]?.finish_reason
       });
       
       return JSON.parse(data.choices[0].message.content);
     } catch (error: any) {
-      console.error('[ResearchTeam] Request failed:', error);
+      console.error(`[ResearchTeam] Model ${model} error:`, error.message);
+      
+      // If this isn't the last model, try the next one
+      if (model !== this.models[this.models.length - 1]) {
+        continue;
+      }
+      
+      // If we've tried all models, throw the error
       throw error;
     }
+    }
+    
+    throw new Error('All models failed to generate analysis');
   }
 
   async runFullTeamAnalysis(entry: any, historicalContext: any) {
