@@ -556,6 +556,85 @@ export default function HomePage() {
   );
 
   const renderAnalysis = () => {
+    // Check for research team analysis first
+    if (activeEntry?.teamAnalysis) {
+      return (
+        <Card>
+          <AnalysisTitle>
+            <Users size={20} style={{ color: 'var(--sage)' }} />
+            Research Team Analysis
+          </AnalysisTitle>
+          
+          <AnalysisSection>
+            {activeEntry.teamAnalysis.initial_analyses?.map((analysis: any, i: number) => (
+              <PerspectiveCard key={i} style={{ marginBottom: '1.5rem' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem', 
+                  marginBottom: '0.75rem',
+                  borderBottom: '1px solid var(--border)',
+                  paddingBottom: '0.5rem'
+                }}>
+                  <Brain size={16} style={{ color: 'var(--sage)' }} />
+                  <PerspectiveTitle style={{ margin: 0 }}>
+                    {analysis.name || analysis.speaker_name}
+                  </PerspectiveTitle>
+                </div>
+                
+                {analysis.pattern && (
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <strong style={{ color: 'var(--sage)', fontSize: '0.875rem' }}>Pattern:</strong>
+                    <div style={{ marginTop: '0.25rem' }}>{analysis.pattern}</div>
+                  </div>
+                )}
+                
+                {analysis.insight && (
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <strong style={{ color: 'var(--sage)', fontSize: '0.875rem' }}>Insight:</strong>
+                    <div style={{ marginTop: '0.25rem', lineHeight: 1.6 }}>{analysis.insight}</div>
+                  </div>
+                )}
+                
+                {analysis.question && (
+                  <div style={{ 
+                    marginTop: '1rem', 
+                    padding: '0.75rem',
+                    backgroundColor: 'var(--sage-light)',
+                    borderRadius: '6px',
+                    borderLeft: '3px solid var(--sage)'
+                  }}>
+                    <strong style={{ fontSize: '0.875rem' }}>💭 Reflection:</strong>
+                    <div style={{ marginTop: '0.25rem', fontStyle: 'italic' }}>
+                      {analysis.question}
+                    </div>
+                  </div>
+                )}
+              </PerspectiveCard>
+            ))}
+            
+            {activeEntry.teamAnalysis.synthesis && (
+              <div style={{
+                marginTop: '2rem',
+                padding: '1rem',
+                backgroundColor: '#f0f7f0',
+                borderRadius: '8px',
+                border: '1px solid var(--sage)'
+              }}>
+                <h4 style={{ margin: 0, marginBottom: '0.5rem', color: 'var(--sage)' }}>
+                  Team Synthesis
+                </h4>
+                <p style={{ margin: 0, lineHeight: 1.6 }}>
+                  {activeEntry.teamAnalysis.synthesis}
+                </p>
+              </div>
+            )}
+          </AnalysisSection>
+        </Card>
+      );
+    }
+    
+    // Fallback to old analysis format if no team analysis
     if (!activeEntry?.analysis) return null;
 
     return (

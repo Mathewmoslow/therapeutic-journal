@@ -63,10 +63,10 @@ export default class ResearchTeamService {
       if (result.data?.initial_analyses) {
         result.data.initial_analyses.forEach((analysis: any) => {
           if (!analysis.error) {
-            console.log(`[ResearchTeamService] ${analysis.speaker_name}:`, {
+            console.log(`[ResearchTeamService] ${analysis.name}:`, {
               professional: analysis.professional,
-              primaryPattern: analysis.analysis?.pattern_identification?.primary_pattern,
-              wordCount: analysis.word_count
+              pattern: analysis.pattern,
+              insight: analysis.insight
             });
           }
         });
