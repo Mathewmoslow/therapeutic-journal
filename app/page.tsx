@@ -362,8 +362,8 @@ export default function HomePage() {
         if (entry.id === entryId) {
           // Extract patterns from successful analysis
           const primaryPatterns = teamAnalysis.initial_analyses?.map((a: any) => 
-            a.analysis?.pattern_identification?.primary_pattern
-          ).filter((p: any) => p && !p.includes('TIMEOUT') && !p.includes('PLACEHOLDER')) || [];
+            a.pattern || a.analysis?.pattern_identification?.primary_pattern
+          ).filter((p: any) => p && !p.includes('TIMEOUT') && !p.includes('failed')) || [];
           
           return {
             ...entry,
@@ -446,7 +446,7 @@ export default function HomePage() {
       
       // Extract key patterns from team analysis for display
       const primaryPatterns = teamAnalysis.initial_analyses?.map((a: any) => 
-        a.analysis?.pattern_identification?.primary_pattern
+        a.pattern || a.analysis?.pattern_identification?.primary_pattern
       ).filter(Boolean) || [];
       
       const entryWithAnalysis = {

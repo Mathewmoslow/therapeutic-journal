@@ -97,58 +97,22 @@ class ResearchTeamPromptBuilder {
     
 ${ANALYSIS_BOUNDARIES}
 
-Your expertise: ${prof.perspective}
-Your focus areas: ${prof.focus_areas.join(', ')}
-Your style: ${prof.conversational_style}
-
-ANALYZE THIS FAMILY DYNAMIC:
-Date: ${entry.createdAt}
-Title: ${entry.title}
 Situation: ${entry.moment.raw_text}
-Emotional Response: ${entry.initial_thoughts.emotions_felt.join(', ')}
-Physical Response: ${entry.initial_thoughts.body_sensations.join(', ')}
-Actual Response: ${entry.initial_thoughts.actual_response}
+Response: ${entry.initial_thoughts.actual_response}
 
-${historicalContext ? `RELEVANT PATTERNS FROM PREVIOUS ENTRIES:
-${historicalContext}` : ''}
-
-Provide your analysis in EXACTLY this JSON structure:
+Provide a BRIEF 150-word snapshot analysis as JSON:
 {
   "professional": "${professional}",
-  "speaker_name": "${prof.name}",
-  "timestamp": "${new Date().toISOString()}",
-  "analysis": {
-    "opening_observation": "Your initial reaction to this family dynamic (200+ words)",
-    "pattern_identification": {
-      "primary_pattern": "The main pattern you see",
-      "evidence": ["Direct quote 1", "Direct quote 2", "Direct quote 3"],
-      "pattern_function": "What this pattern accomplishes in the family system",
-      "pattern_cost": "What this pattern costs the person"
-    },
-    "theoretical_framework": {
-      "through_my_lens": "Deep analysis from your theoretical perspective (400+ words)",
-      "key_concepts": ["Concept 1 from your field", "Concept 2", "Concept 3"],
-      "clinical_observations": "What you notice that others might miss from your perspective (300+ words)"
-    },
-    "family_dynamics": {
-      "roles_observed": "Family roles you identify in THIS incident",
-      "power_dynamics": "Power structures evident in THIS interaction",
-      "communication_patterns": "Communication styles shown HERE",
-      "emotional_rules": "Unspoken emotional rules in THIS family"
-    },
-    "deeper_exploration": {
-      "questions_raised": ["${prof.questions_they_ask[0]}", "${prof.questions_they_ask[1]}", "${prof.questions_they_ask[2]}"],
-      "hypotheses": "Working hypotheses about this dynamic (300+ words)",
-      "areas_for_investigation": ["What to explore further", "What patterns to track", "What to notice"]
-    },
-    "therapeutic_implications": "If this were a client, what would your approach focus on? (200+ words)"
-  },
-  "connections_to_explore": "Themes you want to discuss with ${prof.responds_to.join(' and ')}",
-  "word_count": ${prof.minimum_words}
+  "name": "${prof.name}",
+  "snapshot": {
+    "pattern_spotted": "The ONE key pattern you see (one sentence)",
+    "your_take": "Your unique perspective on this pattern (2-3 sentences max)",
+    "question": "${prof.questions_they_ask[0]}",
+    "insight": "One specific insight from your theoretical lens (one sentence)"
+  }
 }
 
-Write at least ${prof.minimum_words} words total. Be thorough, nuanced, and specific to YOUR theoretical orientation.
-Focus on THIS SPECIFIC family incident, not general family dynamics.`;
+BE EXTREMELY CONCISE. Maximum 150 words total.`;
   }
 
   static buildCrossCommentaryPrompt(
@@ -460,102 +424,105 @@ class ResearchTeamService {
   }
 
   async runFullTeamAnalysis(entry: any, historicalContext: any, options: { quickMode?: boolean } = {}) {
-    console.log('[ResearchTeam] Running full team analysis...', { quickMode: options.quickMode });
+    console.log('[ResearchTeam] Running streamlined analysis...');
     
+    // Always use all 5 professionals but with MUCH shorter outputs
     const professionals = Object.keys(RESEARCH_TEAM);
     
-    // In quick mode, only use 2 professionals
-    const selectedProfessionals = options.quickMode 
-      ? ['psychodynamic_analyst', 'family_systems_therapist']
-      : professionals;
+    // Build ALL prompts into a single request
+    const combinedPrompt = `Analyze this family situation from 5 different therapeutic perspectives.
+
+Situation: ${entry.moment.raw_text}
+Response: ${entry.initial_thoughts.actual_response}
+
+${ANALYSIS_BOUNDARIES}
+
+Provide a brief snapshot from each perspective in JSON format. Each perspective should be 100-150 words MAX:
+
+{
+  "analyses": [
+    {
+      "professional": "psychodynamic_analyst",
+      "name": "Dr. Sarah Chen",
+      "pattern": "Main unconscious pattern (one sentence)",
+      "insight": "Psychodynamic interpretation (2-3 sentences)",
+      "question": "What might this pattern be protecting you from?"
+    },
+    {
+      "professional": "family_systems_therapist",
+      "name": "Dr. Marcus Williams",
+      "pattern": "Family system pattern (one sentence)",
+      "insight": "Systems perspective (2-3 sentences)",
+      "question": "Who else in your family holds this role?"
+    },
+    {
+      "professional": "somatic_specialist",
+      "name": "Dr. Amara Okonkwo",
+      "pattern": "Body/nervous system pattern (one sentence)",
+      "insight": "Somatic observation (2-3 sentences)",
+      "question": "Where does this live in your body?"
+    },
+    {
+      "professional": "cbt_analyst",
+      "name": "Dr. James Park",
+      "pattern": "Cognitive pattern (one sentence)",
+      "insight": "CBT perspective (2-3 sentences)",
+      "question": "What evidence supports or contradicts this belief?"
+    },
+    {
+      "professional": "psychiatric_consultant",
+      "name": "Dr. Elena Volkov",
+      "pattern": "Clinical observation (one sentence)",
+      "insight": "Biological/psychiatric angle (2-3 sentences)",
+      "question": "What biological factors might contribute?"
+    }
+  ],
+  "synthesis": "A 2-3 sentence synthesis of what all perspectives reveal together"
+}
+
+Keep EACH perspective under 150 words. Be specific to THIS situation, not generic.`;
     
-    // Reduced token counts for faster responses
-    const maxTokens = options.quickMode ? 1500 : 3000;
-    const timeout = options.quickMode ? 8000 : 12000;
-    
-    // Phase 1: Initial analyses - RUN IN PARALLEL
-    console.log('[ResearchTeam] Phase 1: Generating initial analyses in parallel...');
-    const analysisPromises = selectedProfessionals.map(async (professional) => {
-      try {
-        const prompt = ResearchTeamPromptBuilder.buildInitialAnalysisPrompt(
-          professional,
-          entry,
-          historicalContext
-        );
-        
-        const analysis = await this.generateAnalysis(prompt, maxTokens, timeout);
-        console.log(`[ResearchTeam] ${professional} analysis complete`);
-        return analysis;
-      } catch (error) {
-        console.error(`[ResearchTeam] ${professional} failed:`, error);
-        // Return a fallback analysis instead of failing completely
-        return {
-          professional,
-          speaker_name: RESEARCH_TEAM[professional as keyof typeof RESEARCH_TEAM].name,
-          analysis: {
-            opening_observation: "Analysis temporarily unavailable",
-            pattern_identification: {
-              primary_pattern: "Unable to analyze at this time",
-              evidence: [],
-              pattern_function: "N/A",
-              pattern_cost: "N/A"
-            }
-          },
-          error: true
-        };
-      }
-    });
-    
-    const teamAnalyses = await Promise.all(analysisPromises);
-    
-    // Skip Phase 2 in quick mode or if there were errors
-    if (options.quickMode || teamAnalyses.some(a => a.error)) {
-      console.log('[ResearchTeam] Skipping cross-commentary (quick mode or errors)');
+    try {
+      // Make a SINGLE API call instead of multiple
+      const result = await this.generateAnalysis(combinedPrompt, 2000, 15000);
+      
+      // Transform the result into the expected format
       return {
         entry_analyzed: {
           id: entry.id,
           title: entry.title,
           date: entry.createdAt
         },
-        initial_analyses: teamAnalyses,
-        cross_commentary: [],
+        initial_analyses: result.analyses || [],
+        synthesis: result.synthesis || '',
         quickMode: true,
-        timestamp: new Date().toISOString(),
-        word_count: JSON.stringify(teamAnalyses).length
+        timestamp: new Date().toISOString()
       };
+    } catch (error) {
+      console.error('[ResearchTeam] Analysis failed:', error);
+      // Return fallback
+      return this.getFallbackAnalysis(entry);
     }
-    
-    // Phase 2: Cross-commentary - also in PARALLEL
-    console.log('[ResearchTeam] Phase 2: Generating cross-commentary in parallel...');
-    const commentaryPromises = selectedProfessionals.map(async (professional) => {
-      try {
-        const prompt = ResearchTeamPromptBuilder.buildCrossCommentaryPrompt(
-          professional,
-          teamAnalyses,
-          entry
-        );
-        
-        const commentary = await this.generateAnalysis(prompt, maxTokens, timeout);
-        console.log(`[ResearchTeam] ${professional} commentary complete`);
-        return commentary;
-      } catch (error) {
-        console.error(`[ResearchTeam] ${professional} commentary failed:`, error);
-        return null; // Skip failed commentaries
-      }
-    });
-    
-    const crossCommentaries = (await Promise.all(commentaryPromises)).filter(c => c !== null);
-    
+  }
+  
+  private getFallbackAnalysis(entry: any) {
     return {
       entry_analyzed: {
         id: entry.id,
         title: entry.title,
         date: entry.createdAt
       },
-      initial_analyses: teamAnalyses,
-      cross_commentary: crossCommentaries,
-      timestamp: new Date().toISOString(),
-      word_count: JSON.stringify(teamAnalyses).length + JSON.stringify(crossCommentaries).length
+      initial_analyses: [{
+        professional: 'system',
+        name: '⚠️ Analysis Timeout',
+        pattern: 'Analysis failed - please retry',
+        insight: 'The analysis took too long. Click retry to try again with optimized settings.',
+        question: 'Would you like to retry the analysis?',
+        error: true
+      }],
+      fallback: true,
+      requiresRetry: true,
+      timestamp: new Date().toISOString()
     };
   }
 

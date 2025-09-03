@@ -96,31 +96,12 @@ export default class ResearchTeamService {
       },
       initial_analyses: [{
         professional: 'system',
-        speaker_name: '⚠️ TIMEOUT - PLACEHOLDER ANALYSIS',
-        analysis: {
-          opening_observation: `⚠️ **ANALYSIS TIMEOUT** - The research team analysis timed out due to high processing demands. This is a PLACEHOLDER response. Your entry "${entry.title}" has been saved but needs to be re-analyzed.`,
-          pattern_identification: {
-            primary_pattern: '❌ ANALYSIS FAILED - TIMEOUT ERROR',
-            evidence: ['This is not real analysis', 'Please retry the analysis'],
-            pattern_function: '⚠️ PLACEHOLDER - Not actual analysis',
-            pattern_cost: '⚠️ PLACEHOLDER - Not actual analysis'
-          },
-          theoretical_framework: {
-            through_my_lens: '🔄 **TO GET REAL ANALYSIS:** Click the "Retry Analysis" button below or re-submit this entry. The timeout occurred because the AI team took too long to respond.',
-            key_concepts: ['TIMEOUT', 'RETRY NEEDED', 'PLACEHOLDER'],
-            clinical_observations: '⏱️ **WHY THIS HAPPENED:** The research team analysis can take 30-60 seconds. Your Vercel hosting plan has a timeout limit that was exceeded. Consider upgrading to Vercel Pro for longer timeouts, or use the Quick Mode option.'
-          },
-          family_dynamics: {
-            roles_observed: '❌ NOT ANALYZED - TIMEOUT',
-            power_dynamics: '❌ NOT ANALYZED - TIMEOUT', 
-            communication_patterns: '❌ NOT ANALYZED - TIMEOUT',
-            emotional_rules: '❌ NOT ANALYZED - TIMEOUT'
-          },
-          therapeutic_implications: '💡 **SOLUTIONS:** 1) Click "Retry Analysis" below, 2) Enable Quick Mode for faster analysis, 3) Upgrade Vercel plan for longer timeouts, or 4) Try again during off-peak hours.'
-        },
+        name: '⚠️ Analysis Timeout',
+        pattern: '❌ Analysis failed due to timeout',
+        insight: 'The analysis took too long to complete. This usually happens with complex entries. Click the retry button below to try again.',
+        question: 'Would you like to retry with optimized settings?',
         error: true
       }],
-      cross_commentary: [],
       fallback: true,
       requiresRetry: true,
       timestamp: new Date().toISOString()
