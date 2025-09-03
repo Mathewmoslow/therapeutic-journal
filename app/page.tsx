@@ -596,6 +596,15 @@ export default function HomePage() {
                   </div>
                 )}
                 
+                {analysis.deeper_observation && (
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <strong style={{ color: 'var(--sage)', fontSize: '0.875rem' }}>Deeper Observation:</strong>
+                    <div style={{ marginTop: '0.25rem', lineHeight: 1.6, fontStyle: 'italic', color: '#666' }}>
+                      {analysis.deeper_observation}
+                    </div>
+                  </div>
+                )}
+                
                 {analysis.question && (
                   <div style={{ 
                     marginTop: '1rem', 
@@ -613,20 +622,63 @@ export default function HomePage() {
               </PerspectiveCard>
             ))}
             
-            {activeEntry.teamAnalysis.synthesis && (
+            {activeEntry.teamAnalysis.cross_commentary && activeEntry.teamAnalysis.cross_commentary.length > 0 && (
               <div style={{
                 marginTop: '2rem',
+                padding: '1rem',
+                backgroundColor: '#fafafa',
+                borderRadius: '8px',
+                border: '1px solid #ddd'
+              }}>
+                <h4 style={{ margin: 0, marginBottom: '1rem', color: 'var(--sage)' }}>
+                  🗣️ Team Discussion
+                </h4>
+                {activeEntry.teamAnalysis.cross_commentary.map((comment: any, i: number) => (
+                  <div key={i} style={{
+                    marginBottom: '0.75rem',
+                    paddingBottom: '0.75rem',
+                    borderBottom: i < activeEntry.teamAnalysis.cross_commentary.length - 1 ? '1px solid #eee' : 'none'
+                  }}>
+                    <strong style={{ color: 'var(--sage)', fontSize: '0.875rem' }}>
+                      {comment.speaker}:
+                    </strong>
+                    <div style={{ marginTop: '0.25rem', marginLeft: '1rem', lineHeight: 1.5 }}>
+                      "{comment.comment}"
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {activeEntry.teamAnalysis.synthesis && (
+              <div style={{
+                marginTop: '1.5rem',
                 padding: '1rem',
                 backgroundColor: '#f0f7f0',
                 borderRadius: '8px',
                 border: '1px solid var(--sage)'
               }}>
                 <h4 style={{ margin: 0, marginBottom: '0.5rem', color: 'var(--sage)' }}>
-                  Team Synthesis
+                  ✨ Team Synthesis
                 </h4>
                 <p style={{ margin: 0, lineHeight: 1.6 }}>
                   {activeEntry.teamAnalysis.synthesis}
                 </p>
+              </div>
+            )}
+            
+            {activeEntry.teamAnalysis.book_relevance && (
+              <div style={{
+                marginTop: '1rem',
+                padding: '0.75rem',
+                backgroundColor: '#fff9e6',
+                borderRadius: '6px',
+                borderLeft: '3px solid #ffa500'
+              }}>
+                <strong style={{ fontSize: '0.875rem' }}>📖 Book Relevance:</strong>
+                <div style={{ marginTop: '0.25rem' }}>
+                  {activeEntry.teamAnalysis.book_relevance}
+                </div>
               </div>
             )}
           </AnalysisSection>

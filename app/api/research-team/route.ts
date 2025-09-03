@@ -424,63 +424,90 @@ class ResearchTeamService {
   }
 
   async runFullTeamAnalysis(entry: any, historicalContext: any, options: { quickMode?: boolean } = {}) {
-    console.log('[ResearchTeam] Running streamlined analysis...');
+    console.log('[ResearchTeam] Running comprehensive analysis with conversations...');
     
-    // Always use all 5 professionals but with MUCH shorter outputs
     const professionals = Object.keys(RESEARCH_TEAM);
     
-    // Build ALL prompts into a single request
-    const combinedPrompt = `Analyze this family situation from 5 different therapeutic perspectives.
+    // MORE comprehensive but still efficient - get full analysis + cross-commentary in one call
+    const combinedPrompt = `Analyze this family situation with a full research team discussion.
 
 Situation: ${entry.moment.raw_text}
 Response: ${entry.initial_thoughts.actual_response}
 
 ${ANALYSIS_BOUNDARIES}
 
-Provide a brief snapshot from each perspective in JSON format. Each perspective should be 100-150 words MAX:
+Provide a complete team analysis with cross-professional dialogue in JSON:
 
 {
-  "analyses": [
+  "initial_analyses": [
     {
       "professional": "psychodynamic_analyst",
       "name": "Dr. Sarah Chen",
-      "pattern": "Main unconscious pattern (one sentence)",
-      "insight": "Psychodynamic interpretation (2-3 sentences)",
-      "question": "What might this pattern be protecting you from?"
+      "pattern": "Key unconscious/attachment pattern identified",
+      "insight": "3-4 sentence psychodynamic perspective on this specific situation",
+      "deeper_observation": "What others might miss from this lens (2-3 sentences)",
+      "question": "What might this pattern be protecting you from knowing?"
     },
     {
-      "professional": "family_systems_therapist",
+      "professional": "family_systems_therapist", 
       "name": "Dr. Marcus Williams",
-      "pattern": "Family system pattern (one sentence)",
-      "insight": "Systems perspective (2-3 sentences)",
-      "question": "Who else in your family holds this role?"
+      "pattern": "Family system/generational pattern",
+      "insight": "3-4 sentence systems analysis of roles and dynamics",
+      "deeper_observation": "Multigenerational transmission aspects (2-3 sentences)",
+      "question": "Who else in the family system holds this role?"
     },
     {
       "professional": "somatic_specialist",
       "name": "Dr. Amara Okonkwo",
-      "pattern": "Body/nervous system pattern (one sentence)",
-      "insight": "Somatic observation (2-3 sentences)",
+      "pattern": "Body/nervous system response pattern",
+      "insight": "3-4 sentences on somatic/embodied aspects",
+      "deeper_observation": "Nervous system state and body memories (2-3 sentences)",
       "question": "Where does this live in your body?"
     },
     {
       "professional": "cbt_analyst",
       "name": "Dr. James Park",
-      "pattern": "Cognitive pattern (one sentence)",
-      "insight": "CBT perspective (2-3 sentences)",
-      "question": "What evidence supports or contradicts this belief?"
+      "pattern": "Core cognitive distortion or belief",
+      "insight": "3-4 sentences on thought patterns and schemas",
+      "deeper_observation": "Behavioral reinforcement cycles (2-3 sentences)",
+      "question": "What evidence contradicts this belief?"
     },
     {
       "professional": "psychiatric_consultant",
       "name": "Dr. Elena Volkov",
-      "pattern": "Clinical observation (one sentence)",
-      "insight": "Biological/psychiatric angle (2-3 sentences)",
+      "pattern": "Clinical/biological factors observed",
+      "insight": "3-4 sentences on neurobiological aspects",
+      "deeper_observation": "Diagnostic considerations if any (2-3 sentences)",
       "question": "What biological factors might contribute?"
     }
   ],
-  "synthesis": "A 2-3 sentence synthesis of what all perspectives reveal together"
+  "cross_commentary": [
+    {
+      "speaker": "Dr. Chen to Dr. Williams",
+      "comment": "I notice you identified [specific pattern]. From my psychodynamic view, this connects to early attachment because..."
+    },
+    {
+      "speaker": "Dr. Williams to Dr. Chen", 
+      "comment": "Yes, and systemically, this pattern serves the family by..."
+    },
+    {
+      "speaker": "Dr. Okonkwo to both",
+      "comment": "The body tells us something crucial here - notice how..."
+    },
+    {
+      "speaker": "Dr. Park to Dr. Okonkwo",
+      "comment": "That somatic response reinforces the cognitive pattern of..."
+    },
+    {
+      "speaker": "Dr. Volkov to team",
+      "comment": "From a biological standpoint, we should consider..."
+    }
+  ],
+  "synthesis": "3-4 sentence team consensus on the core dynamics at play",
+  "book_relevance": "How this entry contributes to understanding your family story (2-3 sentences)"
 }
 
-Keep EACH perspective under 150 words. Be specific to THIS situation, not generic.`;
+Keep total response under 800 words but include real depth and professional dialogue.`;
     
     try {
       // Make a SINGLE API call instead of multiple
