@@ -342,7 +342,7 @@ Create an updated memory structure:
 
 class ResearchTeamService {
   private apiKey: string;
-  private model = 'gpt-4-turbo-preview';
+  private model = 'gpt-4-turbo';
   
   constructor() {
     this.apiKey = process.env.OPENAI_API_KEY!;
@@ -352,40 +352,92 @@ class ResearchTeamService {
   }
 
   async generateAnalysis(prompt: string, maxTokens: number = 4000): Promise<any> {
-    console.log('[ResearchTeam] Generating analysis...');
-    
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a professional on a research team analyzing family dynamics for a book. Provide deep, nuanced, theoretical analysis while respecting boundaries about not inventing content.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.8, // Higher for more varied professional voices
-        max_tokens: maxTokens,
-        response_format: { type: "json_object" }
-      })
+    console.log('[ResearchTeam] Generating analysis...', {
+      promptLength: prompt.length,
+      maxTokens,
+      model: this.model,
+      apiKeyPresent: !!this.apiKey,
+      apiKeyPrefix: this.apiKey?.substring(0, 10)
     });
+    
+    const requestBody = {
+      model: this.model,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a professional on a research team analyzing family dynamics for a book. Provide deep, nuanced, theoretical analysis while respecting boundaries about not inventing content.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.8, // Higher for more varied professional voices
+      max_tokens: maxTokens,
+      response_format: { type: "json_object" }
+    };
+    
+    console.log('[ResearchTeam] Sending request to OpenAI...');
+    
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`
+        },
+        body: JSON.stringify(requestBody)
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('[ResearchTeam] API Error:', error);
-      throw new Error(`OpenAI API error: ${response.status}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[ResearchTeam] OpenAI API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText,
+          model: this.model
+        });
+        
+        // Parse error for more details
+        let errorMessage = `OpenAI API error (${response.status}): `;
+        try {
+          const errorJson = JSON.parse(errorText);
+          if (errorJson.error?.message) {
+            errorMessage += errorJson.error.message;
+            
+            // Common error explanations
+            if (response.status === 400) {
+              if (errorJson.error.message.includes('model')) {
+                errorMessage += ' - The model may not be available or the name is incorrect.';
+              }
+              if (errorJson.error.message.includes('max_tokens')) {
+                errorMessage += ' - Token limit issue.';
+              }
+            } else if (response.status === 401) {
+              errorMessage += ' - API key is invalid or not set correctly in environment variables.';
+            } else if (response.status === 429) {
+              errorMessage += ' - Rate limit exceeded. Please wait before trying again.';
+            }
+          }
+        } catch {
+          errorMessage += errorText || response.statusText;
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      console.log('[ResearchTeam] OpenAI Response received:', {
+        model: data.model,
+        tokensUsed: data.usage?.total_tokens,
+        finishReason: data.choices?.[0]?.finish_reason
+      });
+      
+      return JSON.parse(data.choices[0].message.content);
+    } catch (error: any) {
+      console.error('[ResearchTeam] Request failed:', error);
+      throw error;
     }
-
-    const data = await response.json();
-    return JSON.parse(data.choices[0].message.content);
   }
 
   async runFullTeamAnalysis(entry: any, historicalContext: any) {
