@@ -1,9 +1,4 @@
-// ============================================
-// FILE: /api/openai-journal.ts
-// Journal-First System with OpenAI API Processing
-// ============================================
-
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { NextRequest, NextResponse } from 'next/server';
 
 // ============================================
 // OPENAI API SERVICE
@@ -344,49 +339,35 @@ Provide assessment in JSON format:
 }
 
 // ============================================
-// MAIN API HANDLER
+// MAIN API HANDLER - Next.js App Router
 // ============================================
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-) {
+
+export async function POST(request: NextRequest) {
   const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(7)}`;
   
   console.log(`[API] Request received:`, {
     requestId,
-    method: req.method,
+    method: 'POST',
     path: '/api/openai-journal',
     headers: {
-      contentType: req.headers['content-type'],
-      origin: req.headers['origin'],
-      userAgent: req.headers['user-agent']
+      contentType: request.headers.get('content-type'),
+      origin: request.headers.get('origin'),
+      userAgent: request.headers.get('user-agent')
     },
     timestamp: new Date().toISOString()
   });
   
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-  
   try {
     console.log(`[API][${requestId}] Parsing request body...`);
-    const { action, data, settings = {} } = req.body;
+    const body = await request.json();
+    const { action, data, settings = {} } = body;
     
     console.log(`[API][${requestId}] Request details:`, {
       action,
       hasData: !!data,
       dataKeys: data ? Object.keys(data) : [],
       settings,
-      bodySize: JSON.stringify(req.body).length
+      bodySize: JSON.stringify(body).length
     });
     
     console.log(`[API][${requestId}] Initializing OpenAI service...`);
@@ -469,7 +450,10 @@ export default async function handler(
         break;
         
       default:
-        return res.status(400).json({ error: 'Invalid action' });
+        return NextResponse.json(
+          { error: 'Invalid action', message: `Unknown action: ${action}` },
+          { status: 400 }
+        );
     }
     
     console.log(`[API][${requestId}] Request processed successfully:`, {
@@ -488,7 +472,7 @@ export default async function handler(
     };
     
     console.log(`[API][${requestId}] Sending success response`);
-    return res.status(200).json(response);
+    return NextResponse.json(response);
     
   } catch (error: any) {
     console.error(`[API][${requestId}] Request failed:`, {
@@ -512,102 +496,18 @@ export default async function handler(
     };
     
     console.error(`[API][${requestId}] Sending error response:`, errorResponse);
-    return res.status(statusCode).json(errorResponse);
+    return NextResponse.json(errorResponse, { status: statusCode });
   }
 }
 
-// ============================================
-// FILE: /services/journalService.ts
-// Frontend service to interact with API
-// ============================================
-
-export class JournalService {
-  private apiUrl = '/api/openai-journal';
-  
-  async analyzeEntry(entry: any, previousEntries: any[] = [], settings: any = {}) {
-    console.log('[JournalService] Analyzing entry:', entry.id);
-    
-    const response = await fetch(this.apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'analyze_entry',
-        data: { entry, previousEntries },
-        settings
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to analyze entry');
-    }
-    
-    const result = await response.json();
-    return result.data;
-  }
-  
-  async generateAutonomousDialogue(entries: any[], lastCheckpoint: any = null) {
-    console.log('[JournalService] Generating autonomous dialogue');
-    
-    const response = await fetch(this.apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'autonomous_dialogue',
-        data: { entries, lastCheckpoint }
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to generate dialogue');
-    }
-    
-    const result = await response.json();
-    return result.data;
-  }
-  
-  async generateCheckpoint(entries: any[], previousCheckpoints: any[] = []) {
-    console.log('[JournalService] Generating checkpoint for', entries.length, 'entries');
-    
-    const response = await fetch(this.apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'generate_checkpoint',
-        data: { entries, previousCheckpoints }
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to generate checkpoint');
-    }
-    
-    const result = await response.json();
-    return result.data;
-  }
-  
-  async generateDiagnosticAssessment(entries: any[]) {
-    console.log('[JournalService] Generating diagnostic assessment');
-    
-    const response = await fetch(this.apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'diagnostic_assessment',
-        data: { entries }
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to generate assessment');
-    }
-    
-    const result = await response.json();
-    return result.data;
-  }
-  
-  // Check if autonomous content should be generated
-  shouldGenerateAutonomousContent(lastEntryDate: string): boolean {
-    const daysSinceLastEntry = (Date.now() - new Date(lastEntryDate).getTime()) / (1000 * 60 * 60 * 24);
-    return daysSinceLastEntry > 3; // If no entry for 3+ days
-  }
+// Handle OPTIONS for CORS
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
 }

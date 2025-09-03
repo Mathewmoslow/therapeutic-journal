@@ -5,7 +5,7 @@
   "installCommand": "npm install",
   "framework": "nextjs",
   "functions": {
-    "api/openai-journal.ts": {
+    "app/api/openai-journal/route.ts": {
       "maxDuration": 30
     }
   },
