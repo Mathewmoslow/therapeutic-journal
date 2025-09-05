@@ -741,15 +741,15 @@ export default function HomePage() {
               Entries
             </NavButton>
             <NavButton
-              $active={activeView === 'insights'}
-              onClick={() => setActiveView('insights')}
+              $active={false}
+              onClick={() => window.location.href = '/insights'}
             >
               <Brain size={16} />
               Insights
             </NavButton>
             <NavButton
-              $active={activeView === 'progress'}
-              onClick={() => setActiveView('progress')}
+              $active={false}
+              onClick={() => window.location.href = '/progress'}
             >
               <TrendingUp size={16} />
               Progress

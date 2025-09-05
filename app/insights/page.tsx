@@ -3,35 +3,35 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { 
-  Users, ChevronDown, ChevronUp, Brain, Heart, 
-  Activity, Layers, Stethoscope, MessageCircle,
-  BookOpen, Clock, AlertCircle
+  Users, Brain, TrendingUp, Calendar, BookOpen, 
+  ChevronDown, ChevronUp, MessageCircle, Layers,
+  Clock, Tag, AlertCircle, Filter, Download,
+  CheckCircle, RefreshCw, BarChart3
 } from 'lucide-react';
+import Link from 'next/link';
 import ResearchTeamService from '@/services/researchTeamService';
 
-// Styled Components for Professional Display
+// ============================================
+// STYLED COMPONENTS
+// ============================================
+
 const Container = styled.div`
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   padding: 2rem;
-`;
-
-const ContentWrapper = styled.div`
-  max-width: 1400px;
-  margin: 0 auto;
 `;
 
 const Header = styled.div`
-  background: rgba(255, 255, 255, 0.95);
+  background: white;
   border-radius: 1rem;
   padding: 2rem;
   margin-bottom: 2rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 `;
 
 const Title = styled.h1`
   font-size: 2rem;
-  color: var(--text);
+  color: #2d3748;
   margin-bottom: 0.5rem;
   display: flex;
   align-items: center;
@@ -39,446 +39,626 @@ const Title = styled.h1`
 `;
 
 const Subtitle = styled.p`
-  color: var(--text-muted);
+  color: #718096;
   font-size: 1.1rem;
 `;
 
-const TeamGrid = styled.div`
+const StatsGrid = styled.div`
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 2rem;
-  
-  @media (min-width: 1200px) {
-    grid-template-columns: 1fr 1fr;
-  }
-`;
-
-const ProfessionalCard = styled.div<{ $borderColor: string }>`
-  background: rgba(255, 255, 255, 0.98);
-  border-radius: 1rem;
-  border-left: 5px solid ${props => props.$borderColor};
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  transition: transform 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  }
-`;
-
-const ProfessionalHeader = styled.div`
-  padding: 1.5rem;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  cursor: pointer;
-  user-select: none;
-`;
-
-const ProfessionalInfo = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-`;
-
-const NameAndCredentials = styled.div`
-  h3 {
-    font-size: 1.25rem;
-    color: var(--text);
-    margin-bottom: 0.25rem;
-  }
-  
-  p {
-    font-size: 0.875rem;
-    color: var(--text-muted);
-    font-style: italic;
-  }
-`;
-
-const ExpandIcon = styled.div`
-  color: var(--text-muted);
-  transition: transform 0.3s ease;
-  
-  &.expanded {
-    transform: rotate(180deg);
-  }
-`;
-
-const AnalysisContent = styled.div<{ $isExpanded: boolean }>`
-  max-height: ${props => props.$isExpanded ? '2000px' : '0'};
-  overflow: hidden;
-  transition: max-height 0.5s ease;
-  padding: ${props => props.$isExpanded ? '1.5rem' : '0 1.5rem'};
-`;
-
-const Section = styled.div`
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
   margin-bottom: 2rem;
+`;
+
+const StatCard = styled.div`
+  background: white;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   
-  &:last-child {
-    margin-bottom: 0;
+  h3 {
+    font-size: 0.875rem;
+    color: #718096;
+    margin-bottom: 0.5rem;
+  }
+  
+  .value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--sage);
+  }
+  
+  .change {
+    font-size: 0.75rem;
+    color: #48bb78;
+    margin-top: 0.25rem;
   }
 `;
 
-const SectionTitle = styled.h4`
-  font-size: 1.1rem;
-  color: var(--text);
-  margin-bottom: 1rem;
+const TabContainer = styled.div`
+  background: white;
+  border-radius: 0.75rem;
+  padding: 0.5rem;
+  margin-bottom: 2rem;
   display: flex;
-  align-items: center;
   gap: 0.5rem;
 `;
 
-const ObservationText = styled.div`
-  line-height: 1.8;
-  color: #4a5568;
-  font-size: 1rem;
+const Tab = styled.button<{ $active: boolean }>`
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  border: none;
+  background: ${props => props.$active ? 'var(--sage)' : 'transparent'};
+  color: ${props => props.$active ? 'white' : '#718096'};
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   
-  p {
-    margin-bottom: 1rem;
+  &:hover {
+    background: ${props => props.$active ? 'var(--sage)' : '#f7fafc'};
   }
+`;
+
+const ContentSection = styled.div`
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  margin-bottom: 2rem;
 `;
 
 const PatternCard = styled.div`
-  background: #f7fafc;
-  border-left: 3px solid var(--purple);
-  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
   margin-bottom: 1rem;
-  border-radius: 0.5rem;
-`;
-
-const Evidence = styled.div`
-  background: #fef5e7;
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  margin: 0.5rem 0;
-  font-style: italic;
-  color: #6c5ce7;
-`;
-
-const QuestionList = styled.ul`
-  list-style: none;
-  padding: 0;
+  transition: all 0.2s;
   
-  li {
-    padding: 0.75rem;
-    background: #e8f4fd;
-    margin-bottom: 0.5rem;
-    border-radius: 0.5rem;
-    border-left: 3px solid #3498db;
-    color: #2c3e50;
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   }
 `;
 
-const CommentarySection = styled.div`
-  background: #f0f4f8;
+const PatternHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+`;
+
+const PatternTitle = styled.h3`
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #2d3748;
+`;
+
+const FrequencyBadge = styled.span`
+  background: var(--sage-light);
+  color: var(--sage);
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+`;
+
+const PatternEvolution = styled.div`
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f7fafc;
+  border-radius: 0.5rem;
+`;
+
+const TimelineItem = styled.div`
+  flex: 1;
+  
+  .date {
+    font-size: 0.75rem;
+    color: #718096;
+    margin-bottom: 0.25rem;
+  }
+  
+  .description {
+    font-size: 0.875rem;
+    color: #2d3748;
+  }
+`;
+
+const CheckpointCard = styled.div`
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+`;
+
+const CheckpointTitle = styled.h2`
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+`;
+
+const NarrativeBox = styled.div`
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
   border-radius: 0.75rem;
   padding: 1.5rem;
   margin-top: 1rem;
+  line-height: 1.8;
+  font-size: 1rem;
 `;
 
-const DialogueFlow = styled.div`
-  position: relative;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    left: 20px;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
-  }
+const ConversationThread = styled.div`
+  border-left: 3px solid var(--sage);
+  padding-left: 1.5rem;
+  margin: 1.5rem 0;
 `;
 
-const DialogueItem = styled.div`
-  position: relative;
-  padding-left: 50px;
+const ConversationItem = styled.div`
   margin-bottom: 1.5rem;
   
-  &::before {
-    content: '';
-    position: absolute;
-    left: 15px;
-    top: 10px;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #667eea;
-    border: 2px solid white;
+  .speaker {
+    font-weight: 600;
+    color: var(--sage);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .message {
+    color: #4a5568;
+    line-height: 1.6;
+    padding: 0.75rem;
+    background: #f7fafc;
+    border-radius: 0.5rem;
   }
 `;
 
-const LoadingState = styled.div`
-  text-align: center;
-  padding: 4rem;
+const ExportButton = styled.button`
+  background: var(--sage);
   color: white;
-  font-size: 1.2rem;
-`;
-
-const EmptyState = styled.div`
-  text-align: center;
-  padding: 4rem;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 1rem;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
   
-  h2 {
-    color: var(--text);
-    margin-bottom: 1rem;
-  }
-  
-  p {
-    color: var(--text-muted);
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(74, 124, 126, 0.3);
   }
 `;
 
-// Professional color mapping
-const PROFESSIONAL_COLORS = {
-  psychodynamic_analyst: '#9b59b6',
-  family_systems_therapist: '#3498db', 
-  somatic_specialist: '#e74c3c',
-  cbt_analyst: '#2ecc71',
-  psychiatric_consultant: '#f39c12'
-};
-
-const PROFESSIONAL_ICONS = {
-  psychodynamic_analyst: Brain,
-  family_systems_therapist: Users,
-  somatic_specialist: Activity,
-  cbt_analyst: Layers,
-  psychiatric_consultant: Stethoscope
-};
+// ============================================
+// MAIN COMPONENT
+// ============================================
 
 export default function InsightsPage() {
-  const [teamAnalysis, setTeamAnalysis] = useState<any>(null);
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(false);
-  const [selectedEntry, setSelectedEntry] = useState<any>(null);
-  
+  const [activeTab, setActiveTab] = useState('patterns');
+  const [entries, setEntries] = useState<any[]>([]);
+  const [patterns, setPatterns] = useState<any[]>([]);
+  const [checkpoints, setCheckpoints] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalEntries: 0,
+    uniquePatterns: 0,
+    avgEmotionalIntensity: 0,
+    growthScore: 0
+  });
+
   const researchTeamService = new ResearchTeamService();
-  
+
   useEffect(() => {
-    // Load the most recent analysis from localStorage or fetch if available
-    const savedAnalysis = localStorage.getItem('latestTeamAnalysis');
-    if (savedAnalysis) {
-      setTeamAnalysis(JSON.parse(savedAnalysis));
-    }
+    loadInsights();
   }, []);
-  
-  const toggleCard = (professional: string) => {
-    const newExpanded = new Set(expandedCards);
-    if (newExpanded.has(professional)) {
-      newExpanded.delete(professional);
-    } else {
-      newExpanded.add(professional);
+
+  const loadInsights = async () => {
+    setIsLoading(true);
+    try {
+      // Load entries from localStorage
+      const storedEntries = localStorage.getItem('journalEntries');
+      if (storedEntries) {
+        const entriesData = JSON.parse(storedEntries);
+        setEntries(entriesData);
+        
+        // Extract patterns from all entries
+        const allPatterns = extractPatterns(entriesData);
+        setPatterns(allPatterns);
+        
+        // Extract conversations from team analyses
+        const allConversations = extractConversations(entriesData);
+        setConversations(allConversations);
+        
+        // Calculate stats
+        calculateStats(entriesData, allPatterns);
+        
+        // Check for checkpoints
+        const storedCheckpoints = localStorage.getItem('checkpoints');
+        if (storedCheckpoints) {
+          setCheckpoints(JSON.parse(storedCheckpoints));
+        }
+        
+        // Generate checkpoint if needed
+        if (researchTeamService.shouldGenerateCheckpoint(entriesData)) {
+          await generateNewCheckpoint(entriesData);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading insights:', error);
+    } finally {
+      setIsLoading(false);
     }
-    setExpandedCards(newExpanded);
   };
-  
-  const renderProfessionalAnalysis = (analysis: any) => {
-    const Icon = PROFESSIONAL_ICONS[analysis.professional as keyof typeof PROFESSIONAL_ICONS] || Brain;
-    const color = PROFESSIONAL_COLORS[analysis.professional as keyof typeof PROFESSIONAL_COLORS] || '#666';
-    const isExpanded = expandedCards.has(analysis.professional);
+
+  const extractPatterns = (entries: any[]) => {
+    const patternMap = new Map();
     
-    return (
-      <ProfessionalCard key={analysis.professional} $borderColor={color}>
-        <ProfessionalHeader onClick={() => toggleCard(analysis.professional)}>
-          <ProfessionalInfo>
-            <NameAndCredentials>
-              <h3>
-                <Icon size={20} style={{ display: 'inline', marginRight: '0.5rem' }} />
-                {analysis.speaker_name}
-              </h3>
-              <p>{analysis.professional.replace(/_/g, ' ').toUpperCase()}</p>
-            </NameAndCredentials>
-            <ExpandIcon className={isExpanded ? 'expanded' : ''}>
-              {isExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
-            </ExpandIcon>
-          </ProfessionalInfo>
-        </ProfessionalHeader>
-        
-        <AnalysisContent $isExpanded={isExpanded}>
-          <Section>
-            <SectionTitle>
-              <BookOpen size={18} />
-              Opening Observation
-            </SectionTitle>
-            <ObservationText>
-              <p>{analysis.analysis.opening_observation}</p>
-            </ObservationText>
-          </Section>
-          
-          <Section>
-            <SectionTitle>
-              <AlertCircle size={18} />
-              Primary Pattern Identified
-            </SectionTitle>
-            <PatternCard>
-              <h5 style={{ marginBottom: '0.5rem', color: '#2c3e50' }}>
-                {analysis.analysis.pattern_identification.primary_pattern}
-              </h5>
-              <p style={{ fontSize: '0.9rem', color: '#7f8c8d', marginBottom: '0.5rem' }}>
-                Function: {analysis.analysis.pattern_identification.pattern_function}
-              </p>
-              <p style={{ fontSize: '0.9rem', color: '#c0392b' }}>
-                Cost: {analysis.analysis.pattern_identification.pattern_cost}
-              </p>
-              
-              {analysis.analysis.pattern_identification.evidence?.map((evidence: string, i: number) => (
-                <Evidence key={i}>"{evidence}"</Evidence>
-              ))}
-            </PatternCard>
-          </Section>
-          
-          <Section>
-            <SectionTitle>
-              <Brain size={18} />
-              Through My Theoretical Lens
-            </SectionTitle>
-            <ObservationText>
-              <p>{analysis.analysis.theoretical_framework.through_my_lens}</p>
-            </ObservationText>
-            <ObservationText style={{ marginTop: '1rem' }}>
-              <strong>Clinical Observations:</strong>
-              <p>{analysis.analysis.theoretical_framework.clinical_observations}</p>
-            </ObservationText>
-          </Section>
-          
-          <Section>
-            <SectionTitle>
-              <MessageCircle size={18} />
-              Questions for Exploration
-            </SectionTitle>
-            <QuestionList>
-              {analysis.analysis.deeper_exploration.questions_raised?.map((question: string, i: number) => (
-                <li key={i}>{question}</li>
-              ))}
-            </QuestionList>
-          </Section>
-          
-          {analysis.analysis.therapeutic_implications && (
-            <Section>
-              <SectionTitle>
-                <Heart size={18} />
-                Therapeutic Implications
-              </SectionTitle>
-              <ObservationText>
-                <p>{analysis.analysis.therapeutic_implications}</p>
-              </ObservationText>
-            </Section>
-          )}
-        </AnalysisContent>
-      </ProfessionalCard>
-    );
-  };
-  
-  const renderCrossCommentary = (commentary: any) => {
-    if (!commentary) return null;
+    entries.forEach((entry, index) => {
+      if (entry.teamAnalysis?.initial_analyses) {
+        entry.teamAnalysis.initial_analyses.forEach((analysis: any) => {
+          const pattern = analysis.pattern;
+          if (pattern && !pattern.includes('failed')) {
+            if (!patternMap.has(pattern)) {
+              patternMap.set(pattern, {
+                pattern,
+                professional: analysis.professional,
+                count: 0,
+                firstSeen: entry.createdAt,
+                lastSeen: entry.createdAt,
+                evolution: [],
+                insights: []
+              });
+            }
+            
+            const p = patternMap.get(pattern);
+            p.count++;
+            p.lastSeen = entry.createdAt;
+            p.evolution.push({
+              date: entry.createdAt,
+              context: entry.title,
+              insight: analysis.insight
+            });
+            p.insights.push(analysis.deeper_observation);
+          }
+        });
+      }
+    });
     
-    return (
-      <CommentarySection key={commentary.professional}>
-        <h4 style={{ marginBottom: '1rem', color: '#2c3e50' }}>
-          {commentary.speaker_name} responds to colleagues:
-        </h4>
-        
-        <DialogueFlow>
-          {commentary.commentary.agreements && (
-            <DialogueItem>
-              <strong>Agreeing with {commentary.commentary.agreements.with_whom}:</strong>
-              <p style={{ marginTop: '0.5rem' }}>{commentary.commentary.agreements.what_resonates}</p>
-            </DialogueItem>
-          )}
-          
-          {commentary.commentary.expansions && (
-            <DialogueItem>
-              <strong>Building on {commentary.commentary.expansions.building_on}:</strong>
-              <p style={{ marginTop: '0.5rem' }}>{commentary.commentary.expansions.additional_layer}</p>
-            </DialogueItem>
-          )}
-          
-          {commentary.commentary.gentle_challenges && (
-            <DialogueItem>
-              <strong>Alternative perspective:</strong>
-              <p style={{ marginTop: '0.5rem' }}>{commentary.commentary.gentle_challenges.your_hypothesis}</p>
-            </DialogueItem>
-          )}
-          
-          {commentary.commentary.cross_theoretical_insights && (
-            <DialogueItem>
-              <strong>Synthesis:</strong>
-              <p style={{ marginTop: '0.5rem' }}>{commentary.commentary.cross_theoretical_insights.synthesis}</p>
-            </DialogueItem>
-          )}
-        </DialogueFlow>
-      </CommentarySection>
-    );
+    return Array.from(patternMap.values())
+      .sort((a, b) => b.count - a.count);
   };
-  
-  if (loading) {
-    return (
-      <Container>
-        <LoadingState>
-          <Users size={48} style={{ marginBottom: '1rem' }} />
-          <p>Research team is analyzing...</p>
-          <p style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>This may take a few moments as each professional provides their analysis</p>
-        </LoadingState>
-      </Container>
+
+  const extractConversations = (entries: any[]) => {
+    const conversations: any[] = [];
+    
+    entries.forEach(entry => {
+      if (entry.teamAnalysis?.cross_commentary) {
+        conversations.push({
+          entryId: entry.id,
+          entryTitle: entry.title,
+          date: entry.createdAt,
+          discussion: entry.teamAnalysis.cross_commentary
+        });
+      }
+    });
+    
+    return conversations;
+  };
+
+  const calculateStats = (entries: any[], patterns: any[]) => {
+    setStats({
+      totalEntries: entries.length,
+      uniquePatterns: patterns.length,
+      avgEmotionalIntensity: calculateEmotionalIntensity(entries),
+      growthScore: calculateGrowthScore(entries, patterns)
+    });
+  };
+
+  const calculateEmotionalIntensity = (entries: any[]) => {
+    // Simplified calculation - you could make this more sophisticated
+    const recentEntries = entries.slice(0, 5);
+    const emotions = recentEntries.flatMap(e => 
+      e.initial_thoughts?.emotions_felt || []
     );
-  }
-  
-  if (!teamAnalysis) {
-    return (
-      <Container>
-        <ContentWrapper>
-          <EmptyState>
-            <Users size={64} style={{ color: '#667eea', marginBottom: '1rem' }} />
-            <h2>No Team Analysis Available</h2>
-            <p>Create a journal entry and click "Analyze with Research Team" to see professional perspectives</p>
-          </EmptyState>
-        </ContentWrapper>
-      </Container>
+    return emotions.length / Math.max(recentEntries.length, 1);
+  };
+
+  const calculateGrowthScore = (entries: any[], patterns: any[]) => {
+    // Look for pattern evolution and reduced frequency of problematic patterns
+    if (entries.length < 2) return 0;
+    
+    const earlyPatterns = patterns.filter(p => 
+      new Date(p.firstSeen) < new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     );
-  }
-  
-  return (
-    <Container>
-      <ContentWrapper>
-        <Header>
-          <Title>
-            <Users size={32} />
-            Research Team Analysis
-          </Title>
-          <Subtitle>
-            Five professional perspectives on your family dynamics
-          </Subtitle>
-          {teamAnalysis.entry_analyzed && (
-            <div style={{ marginTop: '1rem', fontSize: '0.9rem', color: '#7f8c8d' }}>
-              <Clock size={16} style={{ display: 'inline', marginRight: '0.5rem' }} />
-              Analyzing: "{teamAnalysis.entry_analyzed.title}" • {new Date(teamAnalysis.entry_analyzed.date).toLocaleDateString()}
+    
+    const reducedPatterns = earlyPatterns.filter(p => {
+      const recentOccurrences = p.evolution.filter((e: any) => 
+        new Date(e.date) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      );
+      return recentOccurrences.length < p.evolution.length / 3;
+    });
+    
+    return Math.round((reducedPatterns.length / Math.max(earlyPatterns.length, 1)) * 100);
+  };
+
+  const generateNewCheckpoint = async (entries: any[]) => {
+    try {
+      const previousAnalyses = entries
+        .flatMap(e => e.teamAnalysis?.initial_analyses || [])
+        .slice(0, 20);
+      
+      const checkpoint = await researchTeamService.generateCheckpoint(
+        entries.slice(0, 10),
+        previousAnalyses
+      );
+      
+      const newCheckpoint = {
+        ...checkpoint,
+        id: `chk_${Date.now()}`,
+        createdAt: new Date().toISOString()
+      };
+      
+      const updatedCheckpoints = [newCheckpoint, ...checkpoints];
+      setCheckpoints(updatedCheckpoints);
+      localStorage.setItem('checkpoints', JSON.stringify(updatedCheckpoints));
+    } catch (error) {
+      console.error('Error generating checkpoint:', error);
+    }
+  };
+
+  const exportBook = () => {
+    const bookData = {
+      title: "My Therapeutic Journey",
+      author: "Anonymous",
+      generatedAt: new Date().toISOString(),
+      entries: entries,
+      patterns: patterns,
+      checkpoints: checkpoints,
+      conversations: conversations
+    };
+    
+    const blob = new Blob([JSON.stringify(bookData, null, 2)], {
+      type: 'application/json'
+    });
+    
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `therapeutic-journey-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const renderPatterns = () => (
+    <ContentSection>
+      <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <Layers size={24} />
+        Pattern Analysis
+      </h2>
+      
+      {patterns.map((pattern, index) => (
+        <PatternCard key={index}>
+          <PatternHeader>
+            <PatternTitle>{pattern.pattern}</PatternTitle>
+            <FrequencyBadge>{pattern.count} occurrences</FrequencyBadge>
+          </PatternHeader>
+          
+          <p style={{ color: '#718096', marginBottom: '1rem' }}>
+            First seen: {new Date(pattern.firstSeen).toLocaleDateString()} | 
+            Last seen: {new Date(pattern.lastSeen).toLocaleDateString()}
+          </p>
+          
+          {pattern.evolution.length > 1 && (
+            <PatternEvolution>
+              <TimelineItem>
+                <div className="date">First Instance</div>
+                <div className="description">{pattern.evolution[0].context}</div>
+              </TimelineItem>
+              {pattern.evolution.length > 2 && (
+                <TimelineItem>
+                  <div className="date">Evolution</div>
+                  <div className="description">
+                    Pattern appeared in {pattern.evolution.length} entries
+                  </div>
+                </TimelineItem>
+              )}
+              <TimelineItem>
+                <div className="date">Latest</div>
+                <div className="description">
+                  {pattern.evolution[pattern.evolution.length - 1].context}
+                </div>
+              </TimelineItem>
+            </PatternEvolution>
+          )}
+          
+          {pattern.insights[0] && (
+            <div style={{ marginTop: '1rem', padding: '1rem', background: '#f7fafc', borderRadius: '0.5rem' }}>
+              <strong style={{ color: 'var(--sage)' }}>Professional Insight:</strong>
+              <p style={{ marginTop: '0.5rem', lineHeight: 1.6 }}>{pattern.insights[0]}</p>
             </div>
           )}
-        </Header>
-        
-        <TeamGrid>
-          {teamAnalysis.initial_analyses?.map((analysis: any) => 
-            renderProfessionalAnalysis(analysis)
-          )}
-        </TeamGrid>
-        
-        {teamAnalysis.cross_commentary && teamAnalysis.cross_commentary.length > 0 && (
-          <>
-            <Header style={{ marginTop: '2rem' }}>
-              <Title style={{ fontSize: '1.5rem' }}>
-                <MessageCircle size={24} />
-                Team Discussion
-              </Title>
-              <Subtitle>Professionals responding to each other's analyses</Subtitle>
-            </Header>
+        </PatternCard>
+      ))}
+    </ContentSection>
+  );
+
+  const renderCheckpoints = () => (
+    <div>
+      {checkpoints.length === 0 ? (
+        <ContentSection>
+          <div style={{ textAlign: 'center', padding: '3rem' }}>
+            <Calendar size={48} style={{ color: '#cbd5e0', marginBottom: '1rem' }} />
+            <p style={{ color: '#718096' }}>
+              Checkpoints will appear after 10 entries or every 30 days
+            </p>
+          </div>
+        </ContentSection>
+      ) : (
+        checkpoints.map(checkpoint => (
+          <CheckpointCard key={checkpoint.id}>
+            <CheckpointTitle>
+              <BookOpen size={24} />
+              Checkpoint: {new Date(checkpoint.createdAt).toLocaleDateString()}
+            </CheckpointTitle>
             
-            {teamAnalysis.cross_commentary.map((commentary: any) =>
-              renderCrossCommentary(commentary)
+            {checkpoint.checkpoint_narrative && (
+              <NarrativeBox>
+                {checkpoint.checkpoint_narrative}
+              </NarrativeBox>
             )}
-          </>
-        )}
-      </ContentWrapper>
+            
+            {checkpoint.team_consensus && (
+              <div style={{ marginTop: '1.5rem' }}>
+                <h3 style={{ marginBottom: '0.75rem' }}>Team Consensus</h3>
+                {checkpoint.team_consensus.agreed_patterns?.map((pattern: any, i: number) => (
+                  <div key={i} style={{ 
+                    background: 'rgba(255,255,255,0.1)', 
+                    padding: '0.75rem', 
+                    borderRadius: '0.5rem',
+                    marginBottom: '0.5rem'
+                  }}>
+                    <strong>{pattern.pattern}</strong>
+                    <p style={{ marginTop: '0.25rem', fontSize: '0.875rem' }}>
+                      {pattern.theoretical_agreement}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CheckpointCard>
+        ))
+      )}
+    </div>
+  );
+
+  const renderConversations = () => (
+    <ContentSection>
+      <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <MessageCircle size={24} />
+        Team Discussions
+      </h2>
+      
+      {conversations.map((conv, index) => (
+        <div key={index} style={{ marginBottom: '2rem' }}>
+          <h3 style={{ color: '#2d3748', marginBottom: '1rem' }}>
+            {conv.entryTitle}
+          </h3>
+          <p style={{ color: '#718096', fontSize: '0.875rem', marginBottom: '1rem' }}>
+            {new Date(conv.date).toLocaleDateString()}
+          </p>
+          
+          <ConversationThread>
+            {conv.discussion.map((item: any, i: number) => (
+              <ConversationItem key={i}>
+                <div className="speaker">
+                  <Users size={16} />
+                  {item.speaker}
+                </div>
+                <div className="message">
+                  {item.comment}
+                </div>
+              </ConversationItem>
+            ))}
+          </ConversationThread>
+        </div>
+      ))}
+    </ContentSection>
+  );
+
+  if (isLoading) {
+    return (
+      <Container>
+        <Header>
+          <Title>Loading Insights...</Title>
+        </Header>
+      </Container>
+    );
+  }
+
+  return (
+    <Container>
+      <Header>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <Title>
+              <Brain size={32} />
+              Research Team Insights
+            </Title>
+            <Subtitle>Deep patterns and professional analysis across your journey</Subtitle>
+          </div>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <Link href="/">
+              <ExportButton style={{ background: '#718096' }}>
+                Back to Journal
+              </ExportButton>
+            </Link>
+            <ExportButton onClick={exportBook}>
+              <Download size={16} />
+              Export Book
+            </ExportButton>
+          </div>
+        </div>
+      </Header>
+      
+      <StatsGrid>
+        <StatCard>
+          <h3>Total Entries</h3>
+          <div className="value">{stats.totalEntries}</div>
+        </StatCard>
+        <StatCard>
+          <h3>Unique Patterns</h3>
+          <div className="value">{stats.uniquePatterns}</div>
+        </StatCard>
+        <StatCard>
+          <h3>Emotional Intensity</h3>
+          <div className="value">{stats.avgEmotionalIntensity.toFixed(1)}</div>
+        </StatCard>
+        <StatCard>
+          <h3>Growth Score</h3>
+          <div className="value">{stats.growthScore}%</div>
+          <div className="change">↑ Pattern improvement</div>
+        </StatCard>
+      </StatsGrid>
+      
+      <TabContainer>
+        <Tab 
+          $active={activeTab === 'patterns'} 
+          onClick={() => setActiveTab('patterns')}
+        >
+          <Layers size={16} />
+          Patterns
+        </Tab>
+        <Tab 
+          $active={activeTab === 'checkpoints'} 
+          onClick={() => setActiveTab('checkpoints')}
+        >
+          <Calendar size={16} />
+          Checkpoints
+        </Tab>
+        <Tab 
+          $active={activeTab === 'conversations'} 
+          onClick={() => setActiveTab('conversations')}
+        >
+          <MessageCircle size={16} />
+          Team Discussions
+        </Tab>
+      </TabContainer>
+      
+      {activeTab === 'patterns' && renderPatterns()}
+      {activeTab === 'checkpoints' && renderCheckpoints()}
+      {activeTab === 'conversations' && renderConversations()}
     </Container>
   );
 }
